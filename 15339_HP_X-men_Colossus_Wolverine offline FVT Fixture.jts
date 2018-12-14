@@ -1,0 +1,206 @@
+SetFinalizeFunction("Cleanup");
+SetFailFunction("FailProcess");
+SetAbortFunction("AbortProcess");
+
+End;
+
+
+function AbortProcess()
+{
+
+    End;
+}
+
+function FailProcess()
+{
+
+    End;
+}
+
+function CleanUp()
+{
+    
+    End;
+}
+
+
+function Initialize()
+{
+    call DIO64_Cmd();
+
+    $SysDir = "D:\\0.Jabil\\Project\\Script\\";
+    $IniFile = $SysDir + "15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini";
+    $IniSectionNames = IniFile_ReadAllSectionNames($snIniFilePah);      
+    $NumSects = ArrayGetLength($iniSectionNames);
+    if($NumSects == 0)
+    {
+	$PromptString = "ini文件: " +$IniFile + "\r\n为空文件！！";
+	$WindowHandle = OperatorPromptNonBlocking($PromptString,400,600);
+	Sleep(2);
+	CloseForm($WindowHandle);
+        goto Initialize_End;
+    }
+  
+    Label Initialize_End:
+    End;
+}
+
+function GlobalCleanup()
+{
+    
+    End;
+}
+
+function AutomationLoop()
+{
+  
+  End;
+}
+
+
+
+//Data Domain
+function DIO64_Cmd()
+{
+      $Read_P00 = New("String","BC 01 52 03 00 4C 01 A1");
+      $Read_P01 = New("String","BC 01 52 03 00 4C 02 A2");
+      $Read_P02 = New("String","BC 01 52 03 00 4C 04 A4");
+      $Read_P03 = New("String","BC 01 52 03 00 4C 08 A8");
+      $Read_P04 = New("String","BC 01 52 03 00 4C 10 B0");
+      $Read_P05 = New("String","BC 01 52 03 00 4C 20 80");
+      $Read_P06 = New("String","BC 01 52 03 00 4C 40 E0");
+      $Read_P07 = New("String","BC 01 52 03 00 4C 80 20");
+
+      $Read_P10 = New("String","BC 01 52 03 01 4C 01 A0");
+      $Read_P11 = New("String","BC 01 52 03 01 4C 02 A3");
+      $Read_P12 = New("String","BC 01 52 03 01 4C 04 A5");
+      $Read_P13 = New("String","BC 01 52 03 01 4C 08 A9");
+      $Read_P14 = New("String","BC 01 52 03 01 4C 10 B1");
+      $Read_P15 = New("String","BC 01 52 03 01 4C 20 81");
+      $Read_P16 = New("String","BC 01 52 03 01 4C 40 E1");
+      $Read_P17 = New("String","BC 01 52 03 01 4C 80 21");	
+
+      $Set_P0 = New("String","BC 01 57 04 00 4C FF 48 15");
+      $Set_P1 = New("String","BC 01 57 04 01 4C FF 48 14");
+      $Set_P2 = New("String","BC 01 57 04 02 4C FF 48 17");
+      $Set_P3 = New("String","BC 01 57 04 03 4C FF 48 16");
+      $Set_P4 = New("String","BC 01 57 04 04 4C FF 48 11");
+      $Set_P5 = New("String","BC 01 57 04 05 4C FF 48 10");
+
+      $Reset_P0 = New("String","BC 01 57 04 00 4C FF 4C 11");
+      $Reset_P1 = New("String","BC 01 57 04 01 4C FF 4C 10");
+      $Reset_P2 = New("String","BC 01 57 04 02 4C FF 4C 13");
+      $Reset_P3 = New("String","BC 01 57 04 03 4C FF 4C 12");
+      $Reset_P4 = New("String","BC 01 57 04 04 4C FF 4C 15");
+      $Reset_P5 = New("String","BC 01 57 04 05 4C FF 4C 14");
+
+      $Set_P0_0 = New("String","BC 01 57 04 00 4C 01 48 EB");
+      $Set_P0_1 = New("String","BC 01 57 04 00 4C 02 48 E8");
+      $Set_P0_2 = New("String","BC 01 57 04 00 4C 04 48 EE");
+      $Set_P0_3 = New("String","BC 01 57 04 00 4C 08 48 E2");
+      $Set_P0_4 = New("String","BC 01 57 04 00 4C 10 48 FA");
+      $Set_P0_5 = New("String","BC 01 57 04 00 4C 20 48 CA");
+      $Set_P0_6 = New("String","BC 01 57 04 00 4C 40 48 AA");
+      $Set_P0_7 = New("String","BC 01 57 04 00 4C 80 48 6A");
+
+      $Reset_P0_0 = New("String","BC 01 57 04 00 4C 01 4C EF");
+      $Reset_P0_1 = New("String","BC 01 57 04 00 4C 02 4C EC");
+      $Reset_P0_2 = New("String","BC 01 57 04 00 4C 04 4C EA");
+      $Reset_P0_3 = New("String","BC 01 57 04 00 4C 08 4C E6");
+      $Reset_P0_4 = New("String","BC 01 57 04 00 4C 10 4C FE");
+      $Reset_P0_5 = New("String","BC 01 57 04 00 4C 20 4C CE");
+      $Reset_P0_6 = New("String","BC 01 57 04 00 4C 40 4C AE");
+      $Reset_P0_7 = New("String","BC 01 57 04 00 4C 80 4C 6E");
+
+      $Set_P1_0 = New("String","BC 01 57 04 01 4C 01 48 EA");
+      $Set_P1_1 = New("String","BC 01 57 04 01 4C 02 48 E9");
+      $Set_P1_2 = New("String","BC 01 57 04 01 4C 04 48 EF");
+      $Set_P1_3 = New("String","BC 01 57 04 01 4C 08 48 E3");
+      $Set_P1_4 = New("String","BC 01 57 04 01 4C 10 48 FB");
+      $Set_P1_5 = New("String","BC 01 57 04 01 4C 20 48 CB");
+      $Set_P1_6 = New("String","BC 01 57 04 01 4C 40 48 AB");
+      $Set_P1_7 = New("String","BC 01 57 04 01 4C 80 48 6B");
+
+      $Reset_P1_0 = New("String","BC 01 57 04 01 4C 01 4C EE");
+      $Reset_P1_1 = New("String","BC 01 57 04 01 4C 02 4C ED");
+      $Reset_P1_2 = New("String","BC 01 57 04 01 4C 04 4C EB");
+      $Reset_P1_3 = New("String","BC 01 57 04 01 4C 08 4C E7");
+      $Reset_P1_4 = New("String","BC 01 57 04 01 4C 10 4C FF");
+      $Reset_P1_5 = New("String","BC 01 57 04 01 4C 20 4C CF");
+      $Reset_P1_6 = New("String","BC 01 57 04 01 4C 40 4C AF");
+      $Reset_P1_7 = New("String","BC 01 57 04 01 4C 80 4C 6F");
+
+      $Set_P2_0 = New("String","BC 01 57 04 02 4C 01 48 E9");
+      $Set_P2_1 = New("String","BC 01 57 04 02 4C 02 48 EA");
+      $Set_P2_2 = New("String","BC 01 57 04 02 4C 04 48 EC");
+      $Set_P2_3 = New("String","BC 01 57 04 02 4C 08 48 E0");
+      $Set_P2_4 = New("String","BC 01 57 04 02 4C 10 48 F8");
+      $Set_P2_5 = New("String","BC 01 57 04 02 4C 20 48 C8");
+      $Set_P2_6 = New("String","BC 01 57 04 02 4C 40 48 A8");
+      $Set_P2_7 = New("String","BC 01 57 04 02 4C 80 48 68");
+
+      $Reset_P2_0 = New("String","BC 01 57 04 02 4C 01 4C ED");
+      $Reset_P2_1 = New("String","BC 01 57 04 02 4C 02 4C EE");
+      $Reset_P2_2 = New("String","BC 01 57 04 02 4C 04 4C E8");
+      $Reset_P2_3 = New("String","BC 01 57 04 02 4C 08 4C E4");
+      $Reset_P2_4 = New("String","BC 01 57 04 02 4C 10 4C FC");
+      $Reset_P2_5 = New("String","BC 01 57 04 02 4C 20 4C CC");
+      $Reset_P2_6 = New("String","BC 01 57 04 02 4C 40 4C AC");
+      $Reset_P2_7 = New("String","BC 01 57 04 02 4C 80 4C 6C");
+
+      $Set_P3_0 = New("String","BC 01 57 04 03 4C 01 48 E8");
+      $Set_P3_1 = New("String","BC 01 57 04 03 4C 02 48 EB");
+      $Set_P3_2 = New("String","BC 01 57 04 03 4C 04 48 ED");
+      $Set_P3_3 = New("String","BC 01 57 04 03 4C 08 48 E1");
+      $Set_P3_4 = New("String","BC 01 57 04 03 4C 10 48 F9");
+      $Set_P3_5 = New("String","BC 01 57 04 03 4C 20 48 C9");
+      $Set_P3_6 = New("String","BC 01 57 04 03 4C 40 48 A9");
+      $Set_P3_7 = New("String","BC 01 57 04 03 4C 80 48 69");
+
+      $Reset_P3_0 = New("String","BC 01 57 04 03 4C 01 4C EC");
+      $Reset_P3_1 = New("String","BC 01 57 04 03 4C 02 4C EF");
+      $Reset_P3_2 = New("String","BC 01 57 04 03 4C 04 4C E9");
+      $Reset_P3_3 = New("String","BC 01 57 04 03 4C 08 4C E5");
+      $Reset_P3_4 = New("String","BC 01 57 04 03 4C 10 4C FD");
+      $Reset_P3_5 = New("String","BC 01 57 04 03 4C 20 4C CD");
+      $Reset_P3_6 = New("String","BC 01 57 04 03 4C 40 4C AD");
+      $Reset_P3_7 = New("String","BC 01 57 04 03 4C 80 4C 6D");
+
+      $Set_P4_0 = New("String","BC 01 57 04 04 4C 01 48 EF");
+      $Set_P4_1 = New("String","BC 01 57 04 04 4C 02 48 EC");
+      $Set_P4_2 = New("String","BC 01 57 04 04 4C 04 48 EA");
+      $Set_P4_3 = New("String","BC 01 57 04 04 4C 08 48 E6");
+      $Set_P4_4 = New("String","BC 01 57 04 04 4C 10 48 FE");
+      $Set_P4_5 = New("String","BC 01 57 04 04 4C 20 48 CE");
+      $Set_P4_6 = New("String","BC 01 57 04 04 4C 40 48 AE");
+      $Set_P4_7 = New("String","BC 01 57 04 04 4C 80 48 6E");
+
+      $Reset_P4_0 = New("String","BC 01 57 04 04 4C 01 4C EB");
+      $Reset_P4_1 = New("String","BC 01 57 04 04 4C 02 4C E8");
+      $Reset_P4_2 = New("String","BC 01 57 04 04 4C 04 4C EE");
+      $Reset_P4_3 = New("String","BC 01 57 04 04 4C 08 4C E2");
+      $Reset_P4_4 = New("String","BC 01 57 04 04 4C 10 4C FA");
+      $Reset_P4_5 = New("String","BC 01 57 04 04 4C 20 4C CA");
+      $Reset_P4_6 = New("String","BC 01 57 04 04 4C 40 4C AA");
+      $Reset_P4_7 = New("String","BC 01 57 04 04 4C 80 4C 6A");
+
+      $Set_P5_0 = New("String","BC 01 57 04 05 4C 01 48 EE");
+      $Set_P5_1 = New("String","BC 01 57 04 05 4C 02 48 ED");
+      $Set_P5_2 = New("String","BC 01 57 04 05 4C 04 48 EB");
+      $Set_P5_3 = New("String","BC 01 57 04 05 4C 08 48 E7");
+      $Set_P5_4 = New("String","BC 01 57 04 05 4C 10 48 FF");
+      $Set_P5_5 = New("String","BC 01 57 04 05 4C 20 48 CF");
+      $Set_P5_6 = New("String","BC 01 57 04 05 4C 40 48 AF");
+      $Set_P5_7 = New("String","BC 01 57 04 05 4C 80 48 6F");
+
+      $Reset_P5_0 = New("String","BC 01 57 04 05 4C 01 4C EA");
+      $Reset_P5_1 = New("String","BC 01 57 04 05 4C 02 4C E9");
+      $Reset_P5_2 = New("String","BC 01 57 04 05 4C 04 4C EF");
+      $Reset_P5_3 = New("String","BC 01 57 04 05 4C 08 4C E3");
+      $Reset_P5_4 = New("String","BC 01 57 04 05 4C 10 4C FB");
+      $Reset_P5_5 = New("String","BC 01 57 04 05 4C 20 4C CB");
+      $Reset_P5_6 = New("String","BC 01 57 04 05 4C 40 4C AB");
+      $Reset_P5_7 = New("String","BC 01 57 04 05 4C 80 4C 6B"); 
+  
+    return;
+}
