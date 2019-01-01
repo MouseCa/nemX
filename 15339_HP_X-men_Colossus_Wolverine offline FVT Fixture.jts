@@ -1,61 +1,1047 @@
-SetFinalizeFunction("Cleanup");
+SetFinalizeFunction("CleanUp");
 SetFailFunction("FailProcess");
 SetAbortFunction("AbortProcess");
 
+
+call init();
+call readUUTTest();
+call logUUTMessage();
+
 End;
+
+//MainScript Domain
+function init()
+{
+    SetTestName("Init");
+    BarrierAddParticipant($PlateCoverbarrierObj);
+    BarrierAddParticipant($PowerbarrierObj);
+
+    $dioObj = CopyVariable($DIO64Obj);
+  
+    if($CellNumber==1)
+    {
+	$scanerObj=CopyVariable($ScanerFirstObj);
+	$uutPort=CopyVariable($UUTPortFirstObj);
+    }
+    if($CellNumber==2)
+    {
+	$scanerObj=CopyVariable($ScanerSecondObj);	
+      	$uutPort=CopyVariable($UUTPortSecondObj);
+    }
+    if($CellNumber==3)
+    {
+	$scanerObj=CopyVariable($ScanerThirdObj);	
+      	$uutPort=CopyVariable($UUTPortThirdObj);
+    }
+    if($CellNumber==4)
+    {
+	$scanerObj=CopyVariable($ScanerFourthObj);
+	$uutPort=CopyVariable($UUTPortFourthObj);     
+    }  
+
+    if($CellNumber == $PowerAndPlateCoverControlCell)
+    {
+	call plateCoverDown();
+	call usbInsert();
+      	$returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT ON\n", "", $WaitTime);
+    }
+
+    call scanBarcode();
+    $participantCount = BarrierGetParticipantCount($PlateCoverbarrierObj);
+    $DisplayPlateCoverbarrierObj =  "Now the $PlateCoverbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPlateCoverbarrierObj);
+    $signalReceived = BarrierSignalAndWait($PlateCoverbarrierObj,0,false); //多个Cell将同时等待		  
+    BarrierRemoveParticipant($PlateCoverbarrierObj);
+    
+    $participantCount = BarrierGetParticipantCount($PlateCoverbarrierObj);
+    $DisplayPlateCoverbarrierObj =  "Now the $PlateCoverbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPlateCoverbarrierObj);   
+    
+    return;
+}
+
+function readUUTTest()
+{
+    SetTestName("UUT Test");
+    if($CellNumber==1)
+    {
+	$cMDtoMicon = $Set_P3_1;
+    }
+    if($CellNumber==2)
+    {
+	$cMDtoMicon = $Set_P3_2;
+    }
+    if($CellNumber==3)
+    {
+	$cMDtoMicon = $Set_P3_3;
+    }
+    if($CellNumber==4)
+    {
+	$cMDtoMicon = $Set_P3_4;     
+    }  
+    EnterCS("DIO64");
+    call sendCMDtoMicon();
+    ExitCS("DIO64");  
+    
+    
+    //Read UUT Message here.
+    //~ $timeOut=10000;
+    //~ $uutMessage="";
+    //~ ($returned,$waitStringFound)  = SerialSendMillisecondsBool($uutPort, "", "FAIL", $timeOut);    
+    //~ $uutMessage=$uutMessage+$returned;
+    //~ UpdateStatus($uutMessage);
+
+    $timeOut=1000;
+    $count=0;
+    $uutMessage="";
+    while($count<10)
+    {
+	$returned = SerialSendMillisecondsBool($uutPort, "", "", $timeOut);	
+	$uutMessage=$uutMessage+$returned;
+	$result1=StringContains($uutMessage,"FAIL");
+	$result2=StringContains($uutMessage,"ARD LEVEL");
+	if($result1||$result2)
+	{
+	    break;
+	}
+	$count=$count+1;
+    }
+    $returned = SerialSendMillisecondsBool($uutPort, "", "", 500);	
+    $uutMessage=$uutMessage+$returned;
+    UpdateStatus($uutMessage);
+
+    UpdateStatus("--------------------------------------------------------------");
+    $measurementName = "LAUNCHING TEST 1 (DDR)";
+    $searchString = "DDR STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 2 (NOR_SETUP) ";
+    $searchString = "NOR_SETUP STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 3 (I2C_EEPROM) ";
+    $searchString = "I2C_EEPROM STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 4 (EFUSEID)";
+    $searchString = "EFUSEID STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 5 (SRAM_TST)";
+    $searchString = "SRAM_TST STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 6 (ROMCHK)";
+    $searchString = "ROMCHK STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 7 (CVP_FX_2BPP)";
+    $searchString = "CVP_FX_2BPP STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 8 (DECLPBK) ";
+    $searchString = "DECLPBK STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 9 (FX_COMP) ";
+    $searchString = "FX_COMP STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 10 (FX_DECOMP)";
+    $searchString = "FX_DECOMP STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 11 (HT_DMA)";
+    $searchString = "HT_DMA STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 12 (MOVE_RB2B)";
+    $searchString = "MOVE_RB2B STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+    
+     $measurementName = "LAUNCHING TEST 13 (MULT_7_7)";
+    $searchString = "MULT_7_7 STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 14 (PD_HFD)";
+    $searchString = "PD_HFD STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 15 (SCALE1) ";
+    $searchString = "SCALE1 STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 16 (SCALE6TO4_QUICK)";
+    $searchString = "SCALE6TO4_QUICK STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 17 (SCPIPE_SPC)";
+    $searchString = "SCPIPE_SPC STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 18 (SDIO_WIFI)";
+    $searchString = "SDIO_WIFI STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 19 (TS_FLINE)";
+    $searchString = "TS_FLINE STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);   
+ 
+    $measurementName = "LAUNCHING TEST 20 (USB20)";
+    $searchString = "USB20 STATUS: ";
+    $searchString = "USB20 STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);
+
+    $measurementName = "LAUNCHING TEST 21 (VIDEOS)";
+    $searchString = "VIDEOS STATUS: ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,4);
+    $passFail=StringContains($returnString,"PASS");
+    RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);  
+    return;
+}
+function logUUTMessage()
+{
+    SetTestName("LogUUTMessage");
+    UpdateStatus("---------------------logUUTMessage-----------------------");
+    $searchString = "HwInitPearl.c ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $StringLength=StringLength($uutMessage);
+    $startPosition=$location;
+    $length=$StringLength-$location;
+    $returnString = StringSub($uutMessage,$startPosition,$length);    
+    UpdateStatus($returnString);
+    
+    //~ $SerialNumber
+    return;
+}
+
+function scanBarcode()
+{
+   SetTestName("Scanning_Barcode");
+      $SerialNmuberLength=19;
+      //~ $Scaner_Handle=SerialOpenWithHandshaking($Scaner_Port,9600,8,"N",1,"None");
+      $Scaner_Handle=CopyVariable($scanerObj);
+      SerialPurge($Scaner_Handle);
+      SerialHandshakingManualSet($Scaner_Handle,"DTR","TURE"); 
+      SerialHandshakingManualSet($Scaner_Handle,"RTS","TURE"); 
+      $receiveBuffer = SerialSendBinary($Scaner_Handle,"04 E4 04 00 FF 14","",0);
+      SerialHandshakingManualSet($Scaner_Handle,"RTS","FALSE");
+      
+       $Flag_GetData = false;
+       $GetDataFromScanner = "";
+       $receiveBuffer = SerialSendBinaryMilliseconds($Scaner_Handle,"00","",50);
+       $RecLen = StringLength($receiveBuffer);
+       if($RecLen >= 50)
+       {
+	    $SubLen = $RecLen - 18;
+	    $Flag_GetData = true;
+	    $GetDataFromScanner = StringSub($receiveBuffer,18,$SubLen);
+	    $GetDataFromScanner = HexStringToString($GetDataFromScanner," ");
+       }
+     
+      $StringLen = 0;
+      $BarcodeLoop = 0;
+      //jude the serial number Length is correct or not------------------------------------------
+      if($Flag_GetData == true)
+      {
+	  $StringLen = StringLength($GetDataFromScanner);
+	  $SerialNumber = $GetDataFromScanner;
+	  //call ScannerFinishScanning1();
+	  SerialHandshakingManualSet($Scaner_Handle,"RTS","TURE"); 
+	 $receiveBuffer = SerialSendBinary($Scaner_Handle,"04 D0 04 00 FF 28","",0);
+	 SerialHandshakingManualSet($Scaner_Handle,"RTS","FALSE");
+      }
+      
+      while($StringLen != $SerialNmuberLength && $BarcodeLoop < 3)
+      {
+	   //***********************************************************
+	   //****Scanning barcode
+	   //***********************************************************
+	    $Barcode = New("String","");
+	    SerialPurge($Scaner_Handle);
+	    SerialHandshakingManualSet($Scaner_Handle,"DTR","TURE"); 
+	    SerialHandshakingManualSet($Scaner_Handle,"RTS","TURE"); 
+	    $receiveBuffer = SerialSendBinary($Scaner_Handle,"04 E4 04 00 FF 14","",0);
+	    SerialHandshakingManualSet($Scaner_Handle,"RTS","FALSE");
+
+	    $receiveArray = SerialReceiveBinaryToArray($Scaner_Handle,1);
+	    $Length = ArrayGetLength($receiveArray);
+	    UpdateStatus($Length);
+	    $arrayResult = NumericComparison($Length,7,"<");
+      
+	    SerialHandshakingManualSet($Scaner_Handle,"RTS","TURE"); 
+	    $receiveBuffer = SerialSendBinary($Scaner_Handle,"04 D0 04 00 FF 28","",0);
+	    SerialHandshakingManualSet($Scaner_Handle,"RTS","FALSE");  
+	    ScriptIf($arrayResult,"GOTO","Exit_Barcode","");
+
+	    $hexBarcode = "";
+	    $i = 6;
+	  Label LoopBarcodeArray:
+	    UpdateStatus($i);
+	    $Value = ArrayGetValue($receiveArray,0,$i);
+	    $hexString = IntegerToHexString($Value,2);
+	    $hexBarcode = StringCat($hexBarcode,$hexString);
+	    $hexBarcode = StringCat($hexBarcode," ");
+	    $i = $i + 1;
+	    $Result = NumericComparison($i,$Length,"<");
+	    ScriptIf($Result,"GOTO","LoopBarcodeArray","");
+	    $Barcode = HexStringToString($hexBarcode," ");
+	    UpdateStatus($Barcode);
+	    $SerialNumber = $Barcode;
+	  Label Exit_Barcode:  
+	      UpdateStatus("Barcode Check End");
+	  //*******************************************************************
+	  //*******************************************************************
+	    //set serial number to upper case and check the length
+	    UpdateStatus($SerialNumber);
+	    $SerialNumber = StringToUpper($SerialNumber);
+	    SetSerialNumberField($SerialNumber);
+	    $StringLen = StringLength($SerialNumber);  
+	    $BarcodeLoop = $BarcodeLoop + 1;	 
+      }
+
+      if($StringLen != $SerialNmuberLength)
+      {
+	    $AbortShowValue = "Serial number Length not match!!!";
+	    //call AbortTestFunction_And_ShowPrompt(); 
+	SetTestName($AbortShowValue);
+	    Abort($AbortShowValue);
+      }
+
+      SetSerialNumberField($SerialNumber);
+      SetCellLabel($SerialNumber)
+      RecordMeasurement("UUT_SerialNumber", $SerialNumber, "", true);
+ return;  
+}
+
+function plateCoverDown()
+{
+    $cMDtoMicon = $Set_P1_0;
+    call sendCMDtoMicon();
+    SleepMilliseconds(800);
+    //Read UUTCoverDownSensor
+    $cMDtoMicon = $Read_P11;
+    call sendCMDtoMicon();
+    $count=0;
+    while($usedString != "00"&&$count<10)
+    {
+	SleepMilliseconds(500);
+	$count=$count+1;
+	//Read UUTCoverDownSensor
+	$cMDtoMicon = $Read_P11;
+	call sendCMDtoMicon();	
+    }
+    //Read UUTCoverDownSensor
+    $cMDtoMicon = $Read_P11;
+    call sendCMDtoMicon();
+    if($usedString!="00")
+    {
+	Fail("Cannot Read the UUT Cover Down!");
+    }
+    
+    return;
+}
+
+function plateCoverUp()
+{
+    $cMDtoMicon = $Reset_P1_0;
+    call sendCMDtoMicon();
+      SleepMilliseconds(800);
+    //Read UUTCoverUpSensor
+    $cMDtoMicon = $Read_P10;
+    call sendCMDtoMicon();
+    $count=0;
+    while($usedString != "00"&&$count<10)
+    {
+	SleepMilliseconds(500);
+	$count=$count+1;
+	//Read UUTCoverUpSensor
+	$cMDtoMicon = $Read_P10;
+	call sendCMDtoMicon();	
+    }
+    //Read UUTCoverUpSensor
+    $cMDtoMicon = $Read_P10;
+    call sendCMDtoMicon();
+    if($usedString!="00")
+    {
+	Fail("Cannot Read the UUT Cover Up!");
+    }
+    
+    return;
+}
+
+function usbInsert()
+{
+    $cMDtoMicon = $Set_P1_1;
+    call sendCMDtoMicon();
+      SleepMilliseconds(800);
+    //Read usbinsertSensor
+    $cMDtoMicon = $Read_P15;
+    call sendCMDtoMicon();
+    $count=0;
+    while($usedString != "00"&&$count<10)
+    {
+	SleepMilliseconds(500);
+	$count=$count+1;
+	//Read usbinsertSensor
+	$cMDtoMicon = $Read_P15;
+	call sendCMDtoMicon();	
+    }
+    //Read usbinsertSensor
+    $cMDtoMicon = $Read_P15;
+    call sendCMDtoMicon();
+    if($usedString!="00")
+    {
+	Fail("Cannot Read the USB Insert!");
+    } 
+  
+    return;
+}
+
+function usbOut()
+{
+    $cMDtoMicon = $Reset_P1_1;
+    call sendCMDtoMicon();
+    SleepMilliseconds(800);
+    //Read usbOut Sensor
+    $cMDtoMicon = $Read_P14;
+    call sendCMDtoMicon();
+    $count=0;
+    while($usedString != "00"&&$count<10)
+    {
+	SleepMilliseconds(500);
+	$count=$count+1;
+	//Read usbOut Sensor
+	$cMDtoMicon = $Read_P14;
+	call sendCMDtoMicon();	
+    }
+    //Read usbOut Sensor
+    $cMDtoMicon = $Read_P14;
+    call sendCMDtoMicon();
+    if($usedString!="00")
+    {
+	Fail("Cannot Read the USB OUT!");
+    } 
+  
+    return;
+}
+
+function sendCMDtoMicon()
+{
+  //-------------------To ensure communication more stable-------------------
+  //Input variables:			$CMDtoMicon		:a sending command 		
+  //Input variables:			$UUTReturnDataLength
+  //Input variables:			$waitTime
+  //Output variables:		$usedString			:a string value which get from COM
+  //------------------------------------------------------------------------------------  
+    //~ UpdateStatus("\n------------- sendCMDtoMicon ----");  
+  
+    $usedString = "";
+    $receivedStringFlag = false;
+    $sendCMDLops = 0;
+  
+    $keyCMD = StringSub($cMDtoMicon,6,2);	//Get the key command  
+    $keyAddr = StringSub($cMDtoMicon,3,2);	//Get the key address
+  
+    if($keyCMD != "53")
+    {
+      $waitTime = 100;
+    }  
+      
+    while(!$receivedStringFlag && $sendCMDLops < 4)
+    {
+	($receivedString,$waitStringFound) = SerialSendBinaryMillisecondsBool($dioObj,$cMDtoMicon,"24 2A",$waitTime);
+
+	//~ UpdateStatus("receivedString is:");  
+	//~ UpdateStatus($receivedString); 
+
+	$array = StringSplitToArray($receivedString," ",50);      
+	$receivedByteLength = ArrayGetLength($array);
+	//~ UpdateStatus($receivedByteLength);
+
+	$receivedStringFlag = ($receivedByteLength >= 4) && $waitStringFound;
+
+	if(!$receivedStringFlag)
+	{
+	    //OperatorPrompt("Re-Send command","ok");
+	    SerialPurge($dioObj);
+	    Sleep(1);
+	}
+	$sendCMDLops = $sendCMDLops + 1;     
+    }
+    
+    if(!$receivedStringFlag)  
+    {
+	//~ SerialClose($ComPort);
+	Fail("Reading data from Micon failure!!!");
+	return;
+    }
+    
+    if($keyCMD != "53")
+    {
+	$lengthOfPayload = Array1DGetValue($array, 2);
+	$lengthOfPayload = HexStringToFloat($lengthOfPayload);
+
+	//~ UpdateStatus("Payload length is:"); 
+	//~ UpdateStatus($LengthOfPayload);
+
+	if($lengthOfPayload == 0)
+	{
+	    return;
+	}
+	//CB 01 01 00 CB 24 2A 
+	$usedString = StringSub($receivedString,9,2);
+	//~ UpdateStatus($usedString);
+    }
+    SleepMilliseconds(100);
+    return;  
+}
 
 
 function AbortProcess()
 {
-
+    UpdateStatus("-----------------AbortProcess here----------------------");
     End;
 }
 
 function FailProcess()
 {
-
+    UpdateStatus("-----------------FailProcess here----------------------");
     End;
 }
 
 function CleanUp()
 {
-    
+    UpdateStatus("-----------------CleanUp here----------------------");
+  
+    ExitCS("DIO64");
+    BarrierRemoveParticipant($PlateCoverbarrierObj);
+    //Must in the end of CleanUp
+    $participantCount = BarrierGetParticipantCount($PowerbarrierObj);
+    $debugMessage =  "Now the $PowerbarrierObj count is:" + $participantCount;
+    UpdateStatus($debugMessage);
+    $signalReceived = BarrierSignalAndWait($PowerbarrierObj,0,false); //多个Cell将同时等待		  
+    BarrierRemoveParticipant($PowerbarrierObj);
+   
+    $participantCount = BarrierGetParticipantCount($PowerbarrierObj);
+    $debugMessage =  "Now the $PowerbarrierObj count is:" + $participantCount;
+    UpdateStatus($debugMessage);
+  
+    $debugMessage="Now the PowerAndPlateCoverControlCell:"+$PowerAndPlateCoverControlCell+" will turn off the power.";
+    $debugMessage=$debugMessage+"\r\n the automationloopflag is:" + $SetAutomationloopFlag;
+    UpdateStatus($debugMessage);
+    if($CellNumber==$PowerAndPlateCoverControlCell)
+    {
+	$returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
+	$cMDtoMicon = $Reset_P3;
+	call sendCMDtoMicon();
+	call usbOut();
+	call plateCoverUp();
+	$SetAutomationloopFlag=true;
+	$PowerAndPlateCoverControlCell=0;
+    }
+  
     End;
+}
+
+//Automation Domain
+function AutomationLoop()
+{
+    if($SetAutomationloopFlag == true)
+    {
+      
+      $dioObj = CopyVariable($DIO64Obj);
+      //Read FVTCoverSensor
+      $cMDtoMicon = $Read_P12;
+      call sendCMDtoMicon();  
+      if($usedString != "00")
+      {
+	  $CoverUpFlag=true;
+      }
+      if($CoverUpFlag&&$usedString=="00")
+      {
+	    $uut1Flag=false;
+	    $uut2Flag=false;
+	    $uut3Flag=false;
+	    $uut4Flag=false;	    
+	  
+	    $cMDtoMicon = $Read_P04;
+	    call sendCMDtoMicon();
+	    if($usedString=="00")
+	    {
+		$uut4Flag=true;
+		$PowerAndPlateCoverControlCell = 4;
+	    }
+	    
+	    $cMDtoMicon = $Read_P03;
+	    call sendCMDtoMicon(); 
+	    //~ $usedString="03";
+	    if($usedString=="00")
+	    {
+		$uut3Flag=true;
+		$PowerAndPlateCoverControlCell = 3;
+	    }
+
+	    $cMDtoMicon = $Read_P02;
+	    call sendCMDtoMicon();
+	    if($usedString=="00")
+	    {
+		$uut2Flag=true;
+		$PowerAndPlateCoverControlCell = 2;	      
+	    }	
+
+	    $cMDtoMicon = $Read_P01;
+	    call sendCMDtoMicon(); 
+	    //~ $usedString="01";
+	    if($usedString=="00")
+	    {
+		$uut1Flag=true;
+		$PowerAndPlateCoverControlCell = 1;	      
+	    }	    
+	    
+	    if($uut1Flag)
+	    {
+		StartTestCell(1);
+	    }
+	    if($uut2Flag)
+	    {
+		StartTestCell(2);
+	    }
+	    if($uut3Flag)
+	    {
+		StartTestCell(3);
+	    }
+	    if($uut4Flag)
+	    {
+		StartTestCell(4);
+	    }
+	    $SetAutomationloopFlag = false;
+	    $CoverUpFlag=false;
+	}	      
+    }
+  End;
+}
+
+//GrobalScript Domain
+function SendCMDtoMicon()
+{
+  //-------------------To ensure communication more stable-------------------
+  //Input variables:			$CMDtoMicon		:a sending command 		
+  //Input variables:			$UUTReturnDataLength
+  //Input variables:			$waitTime
+  //Output variables:		$usedString			:a string value which get from COM
+  //------------------------------------------------------------------------------------  
+    //~ UpdateStatus("\n------------- sendCMDtoMicon ----");  
+  
+    $UsedString = "";
+    $ReceivedStringFlag = false;
+    $SendCMDLops = 0;
+  
+    $KeyCMD = StringSub($CMDtoMicon,6,2);	//Get the key command  
+    $KeyAddr = StringSub($CMDtoMicon,3,2);	//Get the key address
+  
+    if($KeyCMD != "53")
+    {
+      $WaitTime = 100;
+    }  
+      
+    while(!$ReceivedStringFlag && $SendCMDLops < 4)
+    {
+	($ReceivedString,$WaitStringFound) = SerialSendBinaryMillisecondsBool($GrobalDIOObj,$CMDtoMicon,"24 2A",$WaitTime);
+
+	//~ UpdateStatus("receivedString is:");  
+	//~ UpdateStatus($receivedString); 
+
+	$Array = StringSplitToArray($ReceivedString," ",50);      
+	$ReceivedByteLength = ArrayGetLength($Array);
+	UpdateStatus($ReceivedByteLength);
+
+	$ReceivedStringFlag = ($ReceivedByteLength >= 4) && $WaitStringFound;
+
+	if(!$ReceivedStringFlag)
+	{
+	    //OperatorPrompt("Re-Send command","ok");
+	    SerialPurge($GrobalDIOObj);
+	    Sleep(1);
+	}
+	$SendCMDLops = $SendCMDLops + 1;     
+    }
+    
+    if(!$ReceivedStringFlag)  
+    {
+	//~ SerialClose($ComPort);
+	Fail("Reading data from Micon failure!!!");
+	return;
+    }
+    
+    if($KeyCMD != "53")
+    {
+	$LengthOfPayload = Array1DGetValue($Array, 2);
+	$LengthOfPayload = HexStringToFloat($LengthOfPayload);
+
+	//~ UpdateStatus("Payload length is:"); 
+	//~ UpdateStatus($LengthOfPayload);
+
+	if($LengthOfPayload == 0)
+	{
+	    return;
+	}
+	//CB 01 01 00 CB 24 2A 
+	$UsedString = StringSub($ReceivedString,9,2);
+	//~ UpdateStatus($usedString);
+    }
+    SleepMilliseconds(100);
+    return;  
 }
 
 
 function Initialize()
 {
+    $PlateCoverbarrierObj = BarrierCreate("PLATECOVER");
+    $PowerbarrierObj = BarrierCreate("POWER");
+    $SetAutomationloopFlag=true;
+
+    $CoverUpFlag=false;
+    $PowerAndPlateCoverControlCell=0;
     call DIO64_Cmd();
 
-    $SysDir = "D:\\0.Jabil\\Project\\Script\\";
-    $IniFile = $SysDir + "15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini";
-    $IniSectionNames = IniFile_ReadAllSectionNames($snIniFilePah);      
-    $NumSects = ArrayGetLength($iniSectionNames);
-    if($NumSects == 0)
+    $SysDir = "C:\\Users\\bay05\\Desktop\\";
+    $IniFile = $SysDir + "ini\\15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini";
+    $IniSectionNames = IniFile_ReadAllSectionNames($IniFile);      
+    $NumSects = ArrayGetLength($IniSectionNames);
+    if($NumSects < 2)
     {
-	$PromptString = "ini文件: " +$IniFile + "\r\n为空文件！！";
+	$PromptString = "ini文件: " +$IniFile + "\r\n内容不正确！！";
 	$WindowHandle = OperatorPromptNonBlocking($PromptString,400,600);
 	Sleep(2);
 	CloseForm($WindowHandle);
         goto Initialize_End;
     }
+ 
+    $UUTPowerCom=IniFile_ReadKeyInSection($IniFile, "BaseInstrument", "E3648Up");    
+    $FVTPowerCom=IniFile_ReadKeyInSection($IniFile, "BaseInstrument", "E3648Down");
+    
+    $DIO64Com=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "DIO64"); 
+    
+    $DS457Com1=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "DS457UUT1"); 
+    $DS457Com2=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "DS457UUT2"); 
+    $DS457Com3=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "DS457UUT3"); 
+    $DS457Com4=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "DS457UUT4"); 
+    
+    $UUTPortCom1=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "UUTPORT1"); 
+    $UUTPortCom2=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "UUTPORT2"); 
+    $UUTPortCom3=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "UUTPORT3"); 
+    $UUTPortCom4=IniFile_ReadKeyInSection($IniFile, "FVTInstrument", "UUTPORT4"); 
+   
+    $WaitTime=1000;
+    $UUTPowerObj=SerialOpen($UUTPowerCom,9600,8,"N",1);
+    SerialHandshakingManualSet($UUTPowerObj,"DTR","TRUE"); 
+
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "SYST:REM\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "*IDN?\n", "\n", $WaitTime);
+    $Result=StringContains($Returned,"E3649");
+    UpdateStatus($Returned);
+    if($Result==false)
+    {
+	Fail("Cannot Open Power1:E3648!");
+    }
+    UpdateStatus("Open Power1:E3648 Success!");
+ 
+    $FVTPowerObj=SerialOpen($FVTPowerCom,9600,8,"N",1);
+    SerialHandshakingManualSet($FVTPowerObj,"DTR","TRUE");     
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 1\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 20.0,1.4\n", "", $WaitTime); 
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 4.0,1.4\n", "", $WaitTime);        
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
+   
   
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "SYST:REM\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "*IDN?\n", "",$WaitTime);
+    UpdateStatus($Returned);
+    $Result=StringContains($Returned,"E3631");
+    if($Result==false)
+    {
+	Fail("Cannot Open Power2:E3631!");
+    }
+    UpdateStatus("Open Power2:E3631 Success!");
+
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P6V,5.0,3.0\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P25V,12.0,1.0\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT ON\n", "", $WaitTime);
+    
+    
+    $ScanerFirstObj=SerialOpen($DS457Com1,9600,8,"N",1);
+    UpdateStatus("ScanFirst Open Success.");
+    $ScanerSecondObj=SerialOpen($DS457Com2,9600,8,"N",1);
+    UpdateStatus("ScanSecond Open Success.");    
+    $ScanerThirdObj=SerialOpen($DS457Com3,9600,8,"N",1);
+    UpdateStatus("ScanThird Open Success.");    
+    $ScanerFourthObj=SerialOpen($DS457Com4,9600,8,"N",1);
+    UpdateStatus("ScanFourth Open Success.");
+    
+    $UUTPortFirstObj=SerialOpen($UUTPortCom1,115200,8,"N",1);
+    UpdateStatus("UUTPort First Open Success.");    
+    $UUTPortSecondObj=SerialOpen($UUTPortCom2,115200,8,"N",1);
+    UpdateStatus("UUTPort Second Open Success.");    
+    $UUTPortThirdObj=SerialOpen($UUTPortCom3,115200,8,"N",1);
+    UpdateStatus("UUTPort Third Open Success.");    
+    $UUTPortFourthObj=SerialOpen($UUTPortCom4,115200,8,"N",1);
+    UpdateStatus("UUTPort Fourth Open Success.");  
+
+
+    $DIO64Obj=SerialOpen($DIO64Com,19200,8,"N",1);
+
+    $GrobalDIOObj = CopyVariable($DIO64Obj);
+    //Let USB Out
+    $CMDtoMicon = $Reset_P1_1;
+    call SendCMDtoMicon();
+    //Check USB Out
+    $CMDtoMicon = $Read_P14;
+    call SendCMDtoMicon(); 
+    $COUNT=0;
+    while($UsedString != "00" && $COUNT<10)
+    {
+	SleepMilliseconds(500);
+	$COUNT=$COUNT+1;
+	$CMDtoMicon = $Read_P14;
+	call SendCMDtoMicon(); 
+    }
+    $CMDtoMicon = $Read_P14;
+    call SendCMDtoMicon();  
+    if($UsedString != "00")
+    {
+	Fail("Can not Read USB Out!");
+    }
+    
+    //Let Plate Up
+    $CMDtoMicon = $Reset_P1_0;
+    call SendCMDtoMicon();
+    //Check Plate Up
+    $CMDtoMicon = $Read_P10;
+    call SendCMDtoMicon();
+    $COUNT=0;
+    while($UsedString != "00" && $COUNT<10)
+    {
+	SleepMilliseconds(500);
+	$COUNT=$COUNT+1;
+	$CMDtoMicon = $Read_P10;
+	call SendCMDtoMicon(); 
+    }
+    $CMDtoMicon = $Read_P10;
+    call SendCMDtoMicon();  
+    if($UsedString != "00")
+    {
+	Fail("Can not Read Plate Up!");
+    } 
+
+    
+    $LogFileDir=$SysDir+"LogDir";
+    $Exists = CheckDirectoryExists($LogFileDir);
+    $DebugMessage="The LogDir exist status: "+$Exists;
+    UpdateStatus($DebugMessage);
+    if($Exists==false)
+    {
+      CreateDirectory($LogFileDir);
+      $Count=0;
+      while($Exists==false && $Count<10)
+      {
+	      $Exists = CheckDirectoryExists($LogFileDir);
+	      $DebugMessage="The LogDir exist status: "+$Exists;
+	      UpdateStatus($DebugMessage);
+	      SleepMilliseconds(100);
+	      $Count=$Count+1;
+      } 
+      $Exists = CheckDirectoryExists($LogFileDir);
+      $DebugMessage="The LogDir exist status: "+$Exists;
+      UpdateStatus($DebugMessage);
+      if($Exists==false)
+      {
+	  Fail("Cannot Create the LogFileDir!");
+      }      
+    }
+    
     Label Initialize_End:
     End;
 }
 
 function GlobalCleanup()
 {
+    $GrobalDIOObj = CopyVariable($DIO64Obj);
+    //Let USB Out
+    $CMDtoMicon = $Reset_P1_1;
+    call SendCMDtoMicon();
+    //Check USB Out
+    $CMDtoMicon = $Read_P14;
+    call SendCMDtoMicon(); 
+    $COUNT=0;
+    while($UsedString != "00" && $COUNT<10)
+    {
+	SleepMilliseconds(500);
+	$COUNT=$COUNT+1;
+	$CMDtoMicon = $Read_P14;
+	call SendCMDtoMicon(); 
+    }
+    $CMDtoMicon = $Read_P14;
+    call SendCMDtoMicon();  
+    if($UsedString != "00")
+    {
+	Fail("Can not Read USB Out!");
+    }
     
+    //Let Plate Up
+    $CMDtoMicon = $Reset_P1_0;
+    call SendCMDtoMicon();
+    //Check Plate Up
+    $CMDtoMicon = $Read_P10;
+    call SendCMDtoMicon();
+    $COUNT=0;
+    while($UsedString != "00" && $COUNT<10)
+    {
+	SleepMilliseconds(500);
+	$COUNT=$COUNT+1;
+	$CMDtoMicon = $Read_P10;
+	call SendCMDtoMicon(); 
+    }
+    $CMDtoMicon = $Read_P10;
+    call SendCMDtoMicon();  
+    if($UsedString != "00")
+    {
+	Fail("Can not Read Plate Up!");
+    } 
+  
+    $WaitTime=1000;
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "SYST:REM\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 1\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime); 
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime);
+
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "SYST:REM\n", "", $WaitTime);    
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT OFF\n", "", $WaitTime);        
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P6V,0.0,0.0\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P25V,0.0,0.0\n", "", $WaitTime);
+    
+      SerialClose($DIO64Obj);
+      SerialClose($UUTPowerObj);
+      SerialClose($FVTPowerObj);
+      SerialClose($ScanerFirstObj);
+      SerialClose($ScanerSecondObj);
+      SerialClose($ScanerThirdObj);
+      SerialClose($ScanerFourthObj);
+      SerialClose($UUTPortFirstObj);
+      SerialClose($UUTPortSecondObj);
+      SerialClose($UUTPortThirdObj);
+      SerialClose($UUTPortFourthObj);    
     End;
 }
 
-function AutomationLoop()
-{
-  
-  End;
-}
+
+
 
 
 
