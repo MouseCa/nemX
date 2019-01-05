@@ -2,10 +2,13 @@ SetFinalizeFunction("CleanUp");
 SetFailFunction("FailProcess");
 SetAbortFunction("AbortProcess");
 
+//~ $logUUTMessage=false;
+$logUUTMessage=true;
+$cellPass=true;
 
 call init();
+call scanBarcode();
 call readUUTTest();
-call logUUTMessage();
 
 End;
 
@@ -15,7 +18,9 @@ function init()
     SetTestName("Init");
     BarrierAddParticipant($PlateCoverbarrierObj);
     BarrierAddParticipant($PowerbarrierObj);
-
+    BarrierAddParticipant($PowerRelayOnbarrierObj);  
+    BarrierAddParticipant($PowerOnbarrierObj);
+  
     $dioObj = CopyVariable($DIO64Obj);
   
     if($CellNumber==1)
@@ -43,10 +48,8 @@ function init()
     {
 	call plateCoverDown();
 	call usbInsert();
-      	$returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT ON\n", "", $WaitTime);
     }
 
-    call scanBarcode();
     $participantCount = BarrierGetParticipantCount($PlateCoverbarrierObj);
     $DisplayPlateCoverbarrierObj =  "Now the $PlateCoverbarrierObj count is:" + $participantCount;
     UpdateStatus($DisplayPlateCoverbarrierObj);
@@ -63,6 +66,7 @@ function init()
 function readUUTTest()
 {
     SetTestName("UUT Test");
+    UpdateStatus("------------------------------PowerRelayOn---------------------------------------------------");
     if($CellNumber==1)
     {
 	$cMDtoMicon = $Set_P3_1;
@@ -81,8 +85,40 @@ function readUUTTest()
     }  
     EnterCS("DIO64");
     call sendCMDtoMicon();
-    ExitCS("DIO64");  
+    ExitCS("DIO64");
     
+    $participantCount = BarrierGetParticipantCount($PowerRelayOnbarrierObj);
+    $DisplayPowerRelayOnbarrierObj =  "Now the $PowerRelayOnbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPowerRelayOnbarrierObj);
+    $signalReceived = BarrierSignalAndWait($PowerRelayOnbarrierObj,0,false); //多个Cell将同时等待		  
+    BarrierRemoveParticipant($PowerRelayOnbarrierObj);
+    
+    $participantCount = BarrierGetParticipantCount($PowerRelayOnbarrierObj);
+    $DisplayPowerRelayOnbarrierObj =  "Now the $PowerOnbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPowerRelayOnbarrierObj);   
+    
+    
+    UpdateStatus("------------------------------PowerOn---------------------------------------------------");
+    EnterCS("PowerOn");
+    if($PowerCanOn==true)
+    {   
+      	$returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT ON\n", "", $WaitTime);
+	$PowerCanOn=false;
+	$CellLetPowerOn=$CellNumber;
+	$debugMessage="The Cell let power On is:" +$CellLetPowerOn;
+	UpdateStatus($debugMessage);
+    }
+    ExitCS("PowerOn");
+    
+    $participantCount = BarrierGetParticipantCount($PowerOnbarrierObj);
+    $DisplayPowerOnbarrierObj =  "Now the $PowerOnbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPowerOnbarrierObj);
+    $signalReceived = BarrierSignalAndWait($PowerOnbarrierObj,0,false); //多个Cell将同时等待		  
+    BarrierRemoveParticipant($PowerOnbarrierObj);
+    
+    $participantCount = BarrierGetParticipantCount($PowerOnbarrierObj);
+    $DisplayPowerOnbarrierObj =  "Now the $PowerOnbarrierObj count is:" + $participantCount;
+    UpdateStatus($DisplayPowerOnbarrierObj);     
     
     //Read UUT Message here.
     //~ $timeOut=10000;
@@ -308,13 +344,53 @@ function logUUTMessage()
     UpdateStatus("---------------------logUUTMessage-----------------------");
     $searchString = "HwInitPearl.c ";
     $location = StringIndexOf($uutMessage, $searchString, 0);
-    $StringLength=StringLength($uutMessage);
-    $startPosition=$location;
-    $length=$StringLength-$location;
-    $returnString = StringSub($uutMessage,$startPosition,$length);    
-    UpdateStatus($returnString);
+    if($location == -1)
+    {	
+	$ErrorMessage = "Cannot find the Key word:HwInitPearl.c,following is the returned message";
+	$returnString = $ErrorMessage +"\r\n\r\n" + $returnString;
+    }
+    if($location > -1)
+    {
+	$StringLength=StringLength($uutMessage);
+	$startPosition=$location;
+	$length=$StringLength-$location;
+	$returnString = StringSub($uutMessage,$startPosition,$length);      
+    }
+   
+    //~ UpdateStatus($returnString);
     
+  
+    $praseLogFileDir=$LogFileDir+"\\PASS\\";
+    if($cellPass==false)
+    {
+	$praseLogFileDir=$LogFileDir+"\\FAIL\\";
+    }
+    
+    $praseSerialNumber=$SerialNumber;
+    $praseMessage=$returnString;
+    call logUUT();
     //~ $SerialNumber
+    return;
+}
+
+function logUUT()
+{
+    //~ $praseSerialNumber="";
+    //~ $praseLogFileDir="";
+    //~ $praseMessage="";
+    
+  
+    $currentTime = GetSystemTime(); 
+    ($month, $day, $year, $hour, $minute, $second, $dayOfWeek) = DateParse($currentTime);
+    $timeNow=$month+"-"+$day+"-"+$year+" "+$hour+"-"+$minute+"-"+$second;
+    UpdateStatus($timeNow);
+    $fileName=$praseSerialNumber+"("+$timeNow+")-"+$CellNumber+".txt";
+    $filePath=$praseLogFileDir+$fileName;
+    UpdateStatus($filePath);
+    $fileObject = FileWriteOpen($filePath, "NEW");
+    FileWrite($fileObject, $praseMessage); 
+    FileWriteClose($fileObject);
+  
     return;
 }
 
@@ -604,12 +680,20 @@ function sendCMDtoMicon()
 function AbortProcess()
 {
     UpdateStatus("-----------------AbortProcess here----------------------");
+    $logUUTMessage=false;
+    $debugMessage="Now the variable $logUUTMessage is changed to:" +$logUUTMessage;
+    UpdateStatus($debugMessage);  
+    UpdateStatus("-----------------AbortProcess End----------------------");
     End;
 }
 
 function FailProcess()
 {
     UpdateStatus("-----------------FailProcess here----------------------");
+    $cellPass=false;
+    $debugMessage="Now the variable $cellPass is changed to:" +$cellPass;
+    UpdateStatus($debugMessage);
+    UpdateStatus("-----------------FailProcess End----------------------");  
     End;
 }
 
@@ -618,7 +702,19 @@ function CleanUp()
     UpdateStatus("-----------------CleanUp here----------------------");
   
     ExitCS("DIO64");
-    BarrierRemoveParticipant($PlateCoverbarrierObj);
+    ExitCS("PowerOn");
+    BarrierRemoveParticipant($PlateCoverbarrierObj); 
+    BarrierRemoveParticipant($PowerRelayOnbarrierObj);   
+    BarrierRemoveParticipant($PowerOnbarrierObj); 
+  
+    $debugMessage="the variable $cellPass's value is:"+$cellPass;
+    UpdateStatus($debugMessage); 
+
+    if($logUUTMessage==true)
+    {
+	call logUUTMessage();    
+    }
+  
     //Must in the end of CleanUp
     $participantCount = BarrierGetParticipantCount($PowerbarrierObj);
     $debugMessage =  "Now the $PowerbarrierObj count is:" + $participantCount;
@@ -643,7 +739,18 @@ function CleanUp()
 	$SetAutomationloopFlag=true;
 	$PowerAndPlateCoverControlCell=0;
     }
-  
+ 
+
+    if($CellNumber==$CellLetPowerOn)
+    {
+	$PowerCanOn=true;
+	$debugMessage="Finally the $PowerCanOn Variable must be clear.False/True:\r\n"+$PowerCanOn;
+	$debugMessage=$debugMessage + "\r\nThis is done by cell:"+$CellNumber;
+	UpdateStatus($debugMessage);
+	$CellLetPowerOn=0;
+    }
+    UpdateStatus("-----------------CleanUp End----------------------");
+ 
     End;
 }
 
@@ -663,6 +770,7 @@ function AutomationLoop()
       }
       if($CoverUpFlag&&$usedString=="00")
       {
+	    $CellToStartCount=0;
 	    $uut1Flag=false;
 	    $uut2Flag=false;
 	    $uut3Flag=false;
@@ -674,6 +782,7 @@ function AutomationLoop()
 	    {
 		$uut4Flag=true;
 		$PowerAndPlateCoverControlCell = 4;
+		$CellToStartCount=$CellToStartCount+1;
 	    }
 	    
 	    $cMDtoMicon = $Read_P03;
@@ -683,6 +792,7 @@ function AutomationLoop()
 	    {
 		$uut3Flag=true;
 		$PowerAndPlateCoverControlCell = 3;
+		$CellToStartCount=$CellToStartCount+1;
 	    }
 
 	    $cMDtoMicon = $Read_P02;
@@ -690,7 +800,8 @@ function AutomationLoop()
 	    if($usedString=="00")
 	    {
 		$uut2Flag=true;
-		$PowerAndPlateCoverControlCell = 2;	      
+		$PowerAndPlateCoverControlCell = 2;	
+		$CellToStartCount=$CellToStartCount+1;
 	    }	
 
 	    $cMDtoMicon = $Read_P01;
@@ -699,7 +810,8 @@ function AutomationLoop()
 	    if($usedString=="00")
 	    {
 		$uut1Flag=true;
-		$PowerAndPlateCoverControlCell = 1;	      
+		$PowerAndPlateCoverControlCell = 1;
+		$CellToStartCount=$CellToStartCount+1;	      
 	    }	    
 	    
 	    if($uut1Flag)
@@ -802,13 +914,20 @@ function Initialize()
 {
     $PlateCoverbarrierObj = BarrierCreate("PLATECOVER");
     $PowerbarrierObj = BarrierCreate("POWER");
+    $PowerOnbarrierObj = BarrierCreate("POWERON");
+    $PowerRelayOnbarrierObj = BarrierCreate("POWERRELAYON");  
+  
     $SetAutomationloopFlag=true;
-
+  
+    $PowerCanOn=true;
+    $CellLetPowerOn=0;
+  
     $CoverUpFlag=false;
     $PowerAndPlateCoverControlCell=0;
+  
     call DIO64_Cmd();
 
-    $SysDir = "C:\\Users\\bay05\\Desktop\\";
+    $SysDir = "C:\\scripts\\Xmen\\";
     $IniFile = $SysDir + "ini\\15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini";
     $IniSectionNames = IniFile_ReadAllSectionNames($IniFile);      
     $NumSects = ArrayGetLength($IniSectionNames);
@@ -842,7 +961,7 @@ function Initialize()
 
     $Returned = SerialSendMilliseconds($UUTPowerObj, "SYST:REM\n", "", $WaitTime);
     $Returned = SerialSendMilliseconds($UUTPowerObj, "*IDN?\n", "\n", $WaitTime);
-    $Result=StringContains($Returned,"E3649");
+    $Result=StringContains($Returned,"E3648");
     UpdateStatus($Returned);
     if($Result==false)
     {
@@ -850,29 +969,33 @@ function Initialize()
     }
     UpdateStatus("Open Power1:E3648 Success!");
  
-    $FVTPowerObj=SerialOpen($FVTPowerCom,9600,8,"N",1);
-    SerialHandshakingManualSet($FVTPowerObj,"DTR","TRUE");     
     $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 1\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "VOLT:RANG HIGH\n", "", $WaitTime);   
     $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 20.0,1.4\n", "", $WaitTime); 
     $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "VOLT:RANG LOW\n", "", $WaitTime);       
     $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 4.0,1.4\n", "", $WaitTime);        
     $Returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
    
-  
+    $FVTPowerObj=SerialOpen($FVTPowerCom,9600,8,"N",1);
+    SerialHandshakingManualSet($FVTPowerObj,"DTR","TRUE");  
     $Returned = SerialSendMilliseconds($FVTPowerObj, "SYST:REM\n", "", $WaitTime);
     $Returned = SerialSendMilliseconds($FVTPowerObj, "*IDN?\n", "",$WaitTime);
     UpdateStatus($Returned);
-    $Result=StringContains($Returned,"E3631");
+    $Result=StringContains($Returned,"E3648");
     if($Result==false)
     {
-	Fail("Cannot Open Power2:E3631!");
+	Fail("Cannot Open Power2:E3648!");
     }
-    UpdateStatus("Open Power2:E3631 Success!");
+    UpdateStatus("Open Power2:E3648 Success!");
 
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P6V,5.0,3.0\n", "", $WaitTime);
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P25V,12.0,1.0\n", "", $WaitTime);
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT ON\n", "", $WaitTime);
-    
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "INST:NSEL 1\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "VOLT:RANG HIGH\n", "", $WaitTime);   
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL 12.0,1.5\n", "", $WaitTime); 
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "VOLT:RANG LOW\n", "", $WaitTime);       
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL 5.0,3.0\n", "", $WaitTime);        
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT ON\n", "", $WaitTime);    
     
     $ScanerFirstObj=SerialOpen($DS457Com1,9600,8,"N",1);
     UpdateStatus("ScanFirst Open Success.");
@@ -1020,11 +1143,17 @@ function GlobalCleanup()
     $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime); 
     $Returned = SerialSendMilliseconds($UUTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
     $Returned = SerialSendMilliseconds($UUTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($UUTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
 
-    $Returned = SerialSendMilliseconds($UUTPowerObj, "SYST:REM\n", "", $WaitTime);    
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT OFF\n", "", $WaitTime);        
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P6V,0.0,0.0\n", "", $WaitTime);
-    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL P25V,0.0,0.0\n", "", $WaitTime);
+    
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "SYST:REM\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "INST:NSEL 1\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime); 
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "INST:NSEL 2\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "APPL 0.0,0.0\n", "", $WaitTime);
+    $Returned = SerialSendMilliseconds($FVTPowerObj, "OUTPUT OFF\n", "", $WaitTime);
+
     
       SerialClose($DIO64Obj);
       SerialClose($UUTPowerObj);
