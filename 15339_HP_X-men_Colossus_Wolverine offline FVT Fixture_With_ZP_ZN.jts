@@ -188,6 +188,60 @@ function readUUTTest()
     $returnString = StringSub($uutMessage,$startPosition,2);
     $passFail=StringContains($returnString,"50");
     RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);   
+
+    $measurementName = "ZP setting";
+    SetTestName($measurementName);
+    $searchString = "ZP setting = ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,3);
+    $passFail=false;
+    if($TARS_AssemblyNumber=="4RY23-60001E")
+    {
+	$passFail=StringContains($returnString,"0xA");
+    }
+    if($TARS_AssemblyNumber=="4QD21-60001E")
+    {
+      $passFail=StringContains($returnString,"0xA");
+    }
+     if($TARS_AssemblyNumber=="4RY26-60001E")
+    {
+	$passFail=StringContains($returnString,"0xA");
+    }
+     if($TARS_AssemblyNumber=="4RY22-60001E")
+    {
+	$passFail=StringContains($returnString,"0xA");
+    }   
+    //~ RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);   
+    RecordMeasurement($measurementName, $returnString, "", true);
+    
+    $measurementName = "ZN setting";
+    SetTestName($measurementName);
+    $searchString = "ZN setting = ";
+    $location = StringIndexOf($uutMessage, $searchString, 0);
+    $searchStringLength=StringLength($searchString);
+    $startPosition=$location+$searchStringLength;
+    $returnString = StringSub($uutMessage,$startPosition,3);
+    $passFail=false;
+    if($TARS_AssemblyNumber=="4RY23-60001E")
+    {
+	$passFail=StringContains($returnString,"0xA");
+    }
+    if($TARS_AssemblyNumber=="4QD21-60001E")
+    {
+	$passFail=StringContains($returnString,"0x9");
+    }
+    if($TARS_AssemblyNumber=="4RY26-60001E")
+    {
+	$passFail=StringContains($returnString,"0x9");
+    }
+     if($TARS_AssemblyNumber=="4RY22-60001E")
+    {
+	$passFail=StringContains($returnString,"0x9");
+    }      
+    //~ RecordMeasurementPassFail($measurementName, $returnString,"", true, $passFail);   
+    RecordMeasurement($measurementName, $returnString, "", true);
     
     $measurementName = "Total DDR size";
     SetTestName($measurementName);
@@ -1269,45 +1323,12 @@ function AutomationLoop()
 	    }
 	    $SetAutomationloopFlag = false;
 	    $CoverUpFlag=false;
-	    if(!$uut1Flag && !$uut2Flag && !$uut3Flag && !$uut4Flag)
-	    {
-		$SetAutomationloopFlag = true;		
-	    }
 	}	      
     }
   End;
 }
 
 //GrobalScript Domain
-function FVTQuery()
-{
-      // Set up some variables to use.
-    $image = $PraseImage;
-    $buttons = "YES,NO";
-    $butnColor = "GREEN,RED";
-    $butnKeys = "";
-    $textSize = 20;
-    $butnSize = 50;
-    $width = 700;
-    $height = 400;
-    $opacity = 100;
-
-    // Display and wait for button press.
-    $pressed = ShowPickButton($image, $buttons, $butnColor, $butnKeys, $textSize, $butnSize, $width, $height, $opacity);
-
-    $outString = "The button pressed = " + $pressed;
-    UpdateStatus($outString); 
-    if($pressed == "NO")
-    {
-	$PromptString = "不是Xmen夹具,请更换！！";
-	$WindowHandle = OperatorPromptNonBlocking($PromptString,300,300);
-	Sleep(2);
-	CloseForm($WindowHandle);
-	Fail("不是Xmen夹具,请更换！！");
-    }
-    return;
-}
-
 function SendCMDtoMicon()
 {
   //-------------------To ensure communication more stable-------------------
@@ -1382,10 +1403,6 @@ function SendCMDtoMicon()
 
 function Initialize()
 {
-    $SysDir = "C:\\scripts\\Xmen\\";
-    $PraseImage = $SysDir + "ini\\FVTQuery.png";
-    call FVTQuery();
-  
     $PlateCoverbarrierObj = BarrierCreate("PLATECOVER");
     $PowerbarrierObj = BarrierCreate("POWER");
     $PowerOnbarrierObj = BarrierCreate("POWERON");
@@ -1400,8 +1417,9 @@ function Initialize()
     $PowerAndPlateCoverControlCell=0;
   
     call DIO64_Cmd();
-    
-    $IniFile = $SysDir + "ini\\15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini"; 
+
+    $SysDir = "C:\\scripts\\Xmen\\";
+    $IniFile = $SysDir + "ini\\15339_HP_X-men_Colossus_Wolverine offline FVT Fixture.ini";
     $IniSectionNames = IniFile_ReadAllSectionNames($IniFile);      
     $NumSects = ArrayGetLength($IniSectionNames);
     if($NumSects < 2)
